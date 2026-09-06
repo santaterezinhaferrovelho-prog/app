@@ -12,6 +12,7 @@ import Orders from "@/pages/admin/Orders";
 import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Settings from "@/pages/admin/Settings";
+import SuperAdmin from "@/pages/admin/SuperAdmin";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="categories" element={<Categories />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="super" element={<SuperAdmin />} />
           </Route>
           <Route path="/:slug" element={<PublicStorefront />} />
           <Route path="/:slug/checkout" element={<CheckoutPage />} />

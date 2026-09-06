@@ -200,6 +200,21 @@ def clean(doc):
     return doc
 
 # --------- Auth routes ---------
+async def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
+    if not user.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Acesso restrito ao super administrador")
+    return user
+
+class NewLojistaBody(BaseModel):
+    slug: str
+    name: str
+    owner_email: EmailStr
+    owner_password: str
+    description: Optional[str] = ""
+    address: Optional[str] = ""
+    hours: Optional[str] = ""
+    whatsapp: Optional[str] = ""
+
 @api.post("/auth/login")
 async def login(body: LoginBody, response: Response):
     email = body.email.lower().strip()
@@ -420,6 +435,72 @@ async def admin_dashboard(user: dict = Depends(get_current_user)):
         "recent_orders": sorted(orders, key=lambda o: o.get("created_at", ""), reverse=True)[:5],
     }
 
+# --------- Super admin ---------
+@api.get("/super/lojistas")
+async def super_list(user: dict = Depends(require_super_admin)):
+    rows = await db.lojistas.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    ids = [r["id"] for r in rows]
+    # Aggregate counts
+    prod_counts = {}
+    order_counts = {}
+    async for p in db.products.aggregate([{"$match": {"lojista_id": {"$in": ids}}},
+                                          {"$group": {"_id": "$lojista_id", "n": {"$sum": 1}}}]):
+        prod_counts[p["_id"]] = p["n"]
+    async for o in db.orders.aggregate([{"$match": {"lojista_id": {"$in": ids}}},
+                                        {"$group": {"_id": "$lojista_id", "n": {"$sum": 1}}}]):
+        order_counts[o["_id"]] = o["n"]
+    for r in rows:
+        r["product_count"] = prod_counts.get(r["id"], 0)
+        r["order_count"] = order_counts.get(r["id"], 0)
+    return rows
+
+@api.post("/super/lojistas")
+async def super_create(body: NewLojistaBody, user: dict = Depends(require_super_admin)):
+    slug = body.slug.strip().lower()
+    if not slug.replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="Slug inválido (use letras, números e hífens)")
+    if await db.lojistas.find_one({"slug": slug}):
+        raise HTTPException(status_code=400, detail="Slug já em uso")
+    email = body.owner_email.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="E-mail já cadastrado")
+    lojista_id = new_id()
+    lojista_doc = {
+        "id": lojista_id, "slug": slug, "name": body.name,
+        "description": body.description or "",
+        "logo_url": None, "cover_url": None,
+        "phone": "", "whatsapp": body.whatsapp or "", "instagram": "",
+        "address": body.address or "", "hours": body.hours or "",
+        "open_days": [], "open_start": "", "open_end": "",
+        "primary_color": "#FF5500", "delivery_fee": 0.0,
+        "active": True, "created_at": now_iso(),
+    }
+    await db.lojistas.insert_one(lojista_doc)
+    await db.users.insert_one({
+        "id": new_id(), "email": email,
+        "password_hash": hash_password(body.owner_password),
+        "name": body.name, "role": "owner",
+        "lojista_id": lojista_id, "created_at": now_iso(),
+    })
+    return clean(lojista_doc)
+
+@api.patch("/super/lojistas/{lid}/toggle")
+async def super_toggle(lid: str, user: dict = Depends(require_super_admin)):
+    l = await db.lojistas.find_one({"id": lid})
+    if not l:
+        raise HTTPException(status_code=404, detail="Lojista não encontrado")
+    await db.lojistas.update_one({"id": lid}, {"$set": {"active": not l.get("active", True)}})
+    return clean(await db.lojistas.find_one({"id": lid}))
+
+@api.delete("/super/lojistas/{lid}")
+async def super_delete(lid: str, user: dict = Depends(require_super_admin)):
+    await db.lojistas.delete_one({"id": lid})
+    await db.users.delete_many({"lojista_id": lid})
+    await db.products.delete_many({"lojista_id": lid})
+    await db.categories.delete_many({"lojista_id": lid})
+    await db.orders.delete_many({"lojista_id": lid})
+    return {"ok": True}
+
 # --------- App wiring ---------
 app.include_router(api)
 
@@ -480,16 +561,18 @@ async def seed():
             "name": "Proprietário Tá Na Hora",
             "role": "owner",
             "lojista_id": lojista["id"],
+            "is_super_admin": True,
             "created_at": now_iso(),
         })
     else:
-        # keep password in sync with .env if changed; ensure lojista linked
         updates = {}
         if not verify_password(ADMIN_PASSWORD, existing_user["password_hash"]):
             updates["password_hash"] = hash_password(ADMIN_PASSWORD)
         if not existing_user.get("lojista_id"):
             updates["lojista_id"] = lojista["id"]
             updates["role"] = "owner"
+        if not existing_user.get("is_super_admin"):
+            updates["is_super_admin"] = True
         if updates:
             await db.users.update_one({"email": ADMIN_EMAIL.lower()}, {"$set": updates})
 

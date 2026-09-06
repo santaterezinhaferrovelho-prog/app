@@ -25,11 +25,11 @@ Sistema de cardápio digital + pedidos online mobile-first para restaurantes/bar
 - server.py completo com auth, storage, tenants, categorias, produtos, pedidos, dashboard.
 - Frontend com todas as rotas públicas e admin, contexto de auth + carrinho, componentes shadcn.
 - Seed automático: lojista tanahora + owner + categoria Marmitas + 17 produtos placeholder editáveis (P=20, M=25, G=30) + 4 adicionais.
+- Painel Super-Admin (2026-02): listar/criar/desativar/excluir lojistas com contagem de produtos e pedidos; endpoints /api/super/*, gate is_super_admin=True no owner seed.
 - Testing agent: backend 100%, frontend ~90% (fluxos-core verificados).
 
 ## Backlog (priorizado)
 ### P1
-- Painel super-admin (listar todos os lojistas + criar/desativar).
 - Registro público de novos lojistas (auto-serviço).
 - Notificação sonora de pedido novo no admin.
 - Compartilhamento por QR Code do link /slug.

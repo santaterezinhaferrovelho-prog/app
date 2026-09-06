@@ -1,10 +1,10 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, ShoppingBag, Package, ListTree, Settings, LogOut, UtensilsCrossed, ExternalLink } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, ListTree, Settings, LogOut, UtensilsCrossed, ExternalLink, Store } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 
-const links = [
+const baseLinks = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true, testid: "nav-dashboard" },
   { to: "/admin/orders", icon: ShoppingBag, label: "Pedidos", testid: "nav-orders" },
   { to: "/admin/products", icon: Package, label: "Produtos", testid: "nav-products" },
@@ -13,12 +13,16 @@ const links = [
 ];
 
 export default function AdminLayout() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const nav = useNavigate();
   const [lojista, setLojista] = useState(null);
   useEffect(() => {
     api.get("/admin/lojista").then(({ data }) => setLojista(data)).catch(() => {});
   }, []);
+
+  const links = user?.is_super_admin
+    ? [...baseLinks, { to: "/admin/super", icon: Store, label: "Super Admin", testid: "nav-super" }]
+    : baseLinks;
 
   return (
     <div className="min-h-screen bg-[#0D0D0F] text-zinc-100 flex">
