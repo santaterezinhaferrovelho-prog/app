@@ -404,6 +404,17 @@ async def admin_list_orders(user: dict = Depends(get_current_user)):
     return await db.orders.find({"lojista_id": lojista["id"]},
                                 {"_id": 0}).sort("created_at", -1).to_list(500)
 
+@api.get("/admin/orders/{oid}")
+async def admin_get_order(oid: str, user: dict = Depends(get_current_user)):
+    lojista = await get_lojista_for_user(user)
+    order = await db.orders.find_one({"id": oid, "lojista_id": lojista["id"]}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    lojista_pub = {"name": lojista.get("name"), "phone": lojista.get("phone"),
+                   "whatsapp": lojista.get("whatsapp"), "address": lojista.get("address"),
+                   "slug": lojista.get("slug")}
+    return {"order": order, "lojista": lojista_pub}
+
 @api.patch("/admin/orders/{oid}/status")
 async def admin_update_order_status(oid: str, body: dict, user: dict = Depends(get_current_user)):
     lojista = await get_lojista_for_user(user)

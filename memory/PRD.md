@@ -27,13 +27,13 @@ Sistema de cardápio digital + pedidos online mobile-first para restaurantes/bar
 - Seed automático: lojista tanahora + owner + categoria Marmitas + 17 produtos placeholder editáveis (P=20, M=25, G=30) + 4 adicionais.
 - Painel Super-Admin (2026-02): listar/criar/desativar/excluir lojistas com contagem de produtos e pedidos; endpoints /api/super/*, gate is_super_admin=True no owner seed.
 - Aviso sonoro + destaque de pedido novo (2026-02): utilitário Web Audio (`lib/sound.js`) toca chime a cada pedido detectado no polling de 10s; toggle ON/OFF persistido em localStorage; badge de "N novos" no título e ring laranja + animate-pulse + fita "NOVO PEDIDO" no card por 20s.
+- Impressão de comanda (2026-02): rota /admin/orders/:id/print com layout 80mm (Courier, dashes, carimbo OBRIGADO); auto-abre window.print() ao carregar; botão "Imprimir" em cada card e auto-abertura ao avançar para "Aceito"; endpoint GET /api/admin/orders/:id.
 - Testing agent: backend 100%, frontend ~90% (fluxos-core verificados).
 
 ## Backlog (priorizado)
 ### P1
 - Registro público de novos lojistas (auto-serviço).
 - Compartilhamento por QR Code do link /slug.
-- Impressão de comanda (janela dedicada).
 
 ### P2
 - Integração Pix (link/QR de pagamento).

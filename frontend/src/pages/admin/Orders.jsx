@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import api, { formatBRL } from "@/lib/api";
 import { STATUS_META, STATUS_FLOW } from "./statusMeta";
 import { toast } from "sonner";
-import { Bell, BellOff, Volume2 } from "lucide-react";
+import { Bell, BellOff, Volume2, Printer } from "lucide-react";
 import { playNewOrderChime, unlockAudio } from "@/lib/sound";
 
 const SEEN_KEY = "orders_seen_ids";
+const PRINT_WIN_FEATURES = "width=420,height=720,scrollbars=yes,resizable=yes";
+
+function openPrintWindow(orderId) {
+  window.open(`/admin/orders/${orderId}/print`, `print_${orderId}`, PRINT_WIN_FEATURES);
+}
 
 function loadSeen() {
   try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); }
@@ -87,6 +92,10 @@ export default function Orders() {
     try {
       await api.patch(`/admin/orders/${o.id}/status`, { status });
       toast.success(`Status atualizado: ${STATUS_META[status].label}`);
+      // Auto-print when moving into "accepted"
+      if (status === "accepted") {
+        openPrintWindow(o.id);
+      }
       // Clear the visual flash for this order
       setFlashIds((prev) => {
         const s = new Set(prev); s.delete(o.id); return s;
@@ -201,6 +210,14 @@ export default function Orders() {
               <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
                 <div className="font-mono text-orange-400 font-bold">Total: {formatBRL(o.total)}</div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => openPrintWindow(o.id)}
+                    data-testid={`order-print-${o.id}`}
+                    title="Imprimir comanda"
+                    className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5"
+                  >
+                    <Printer className="h-3.5 w-3.5" /> Imprimir
+                  </button>
                   {next && o.status !== "cancelled" && (
                     <button
                       onClick={() => setStatus(o, next)}

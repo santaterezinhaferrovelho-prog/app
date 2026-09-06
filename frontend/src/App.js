@@ -13,6 +13,7 @@ import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Settings from "@/pages/admin/Settings";
 import SuperAdmin from "@/pages/admin/SuperAdmin";
+import OrderPrint from "@/pages/admin/OrderPrint";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -29,6 +30,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin/orders/:id/print"
+            element={
+              <Protected>
+                <OrderPrint />
+              </Protected>
+            }
+          />
           <Route
             path="/admin"
             element={
