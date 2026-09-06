@@ -1,0 +1,41 @@
+{
+  "summary": "First-finish smoke test. Backend fully green across public storefront, auth (login/me/logout), CRUD (categories + products with toggle), lojista settings, order creation (order_number sequence, status='new'), full status flow (new→accepted→preparing→ready→out_for_delivery→delivered), invalid-status 400, and dashboard KPIs. Multi-tenant isolation OK (unauth admin=401, admin endpoints return only owner's lojista_id data). Frontend storefront loads with 17 products, product dialog exposes P/M/G sizes + addons + add-to-cart, floating cart appears, cart sheet + checkout navigation works. Admin login redirects to /admin, KPIs render, sidebar nav-orders reaches /admin/orders. Checkout final submit not asserted via UI because the created order was already advanced to 'delivered' by prior API tests and the page-reload test flow flushed the in-memory cart; however, POST /public/orders was validated via API and reflected in dashboard.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "GET /api/public/lojistas/tanahora -> 200, name 'Tá Na Hora', 1 categoria 'Marmitas', 17 products with sizes P/M/G (20/25/30) and 4 addons",
+    "POST /api/auth/login owner -> 200, role=owner, lojista_id set, token returned, cookie set",
+    "GET /api/auth/me with cookie -> 200 same user; without cookie -> 401",
+    "Categories CRUD (create/list/update/delete) -> all 200, auth enforced",
+    "Products CRUD + toggle -> create/list/toggle(active=false)/update/delete all 200",
+    "PUT /api/admin/lojista settings -> 200",
+    "POST /api/public/lojistas/tanahora/orders -> 200, order_number=1, status='new'",
+    "PATCH /api/admin/orders/{id}/status through full flow accepted→preparing→ready→out_for_delivery→delivered -> all 200; invalid status -> 400",
+    "GET /api/admin/dashboard -> orders_today=1, sales_today=32.0, pending_orders=1, active_products=17, recent_orders populated",
+    "Multi-tenant: /api/admin/products unauth -> 401; authed admin/orders only returns lojista_id=owner's",
+    "Frontend /tanahora renders header 'Tá Na Hora', 17 product cards, dialog with 3 size radios",
+    "Add-to-cart -> floating-cart-bar visible; cart-checkout-button navigates to /tanahora/checkout",
+    "Admin login (santaterezinhaferrovelho@gmail.com) -> redirected to /admin, dashboard KPIs rendered",
+    "Sidebar nav-orders navigates to /admin/orders"
+  ],
+  "failed": [
+    {
+      "area": "frontend-a11y",
+      "issue": "Radix DialogContent missing DialogTitle warning (product dialog and possibly others)",
+      "evidence": "console.error: `DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.",
+      "priority": "LOW"
+    },
+    {
+      "area": "public-storefront",
+      "issue": "2x 401 console errors on /tanahora initial load (likely /api/auth/me probe firing on public page)",
+      "evidence": "CONSOLE[error]: Failed to load resource: the server responded with a status of 401 (x2) on /tanahora",
+      "priority": "LOW"
+    }
+  ],
+  "action_items": [
+    "Optional: wrap product/cart DialogContent titles with VisuallyHidden or add a DialogTitle to remove a11y warning",
+    "Optional: gate /api/auth/me call so it does not fire on public storefront (avoid 401 console noise)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~90% (core storefront+cart+admin verified; UI-level end-to-end checkout submit not asserted, but underlying API + navigation confirmed)"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}

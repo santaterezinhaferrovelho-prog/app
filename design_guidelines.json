@@ -1,0 +1,169 @@
+{
+  "project_name": "Tá Na Hora — Multi-Tenant Digital Menu & Online Ordering Platform",
+  "app_type": "hybrid_fullstack",
+  "theme": "dark_mode_orange_accent",
+  "responsive": {
+    "breakpoint": "mobile-first (default < 640px for mobile web, md: 768px, lg: 1024px)",
+    "layout": "Mobile-first single-column vertical feed with horizontal scrolling category chips and bottom-anchored sticky floating cart bar (z-40). Desktop reflows to responsive multi-column grid for products and persistent side/drawer cart.",
+    "typography": "Mobile-first fluid scale. Headings H1 max text-3xl on mobile scaling to text-5xl on desktop. Touch-friendly font sizes for form inputs (min 16px to prevent iOS auto-zoom).",
+    "overflow_guard": "Strict overflow-x-hidden on root wrapper. Category chips use touch swipe native overflow-x-auto scrollbar-none.",
+    "tap_targets": "Minimum touch target size 48x48px for all steppers, chips, status action buttons, and bottom CTAs."
+  },
+  "typography": {
+    "heading_font": "Outfit, sans-serif (Google Font - bold, high impact, appetite-appealing geometric curve)",
+    "body_font": "Plus Jakarta Sans, sans-serif (Google Font - crisp legibility for menus, descriptions, prices)",
+    "mono_font": "JetBrains Mono, monospace (for order IDs, monetary totals, and timestamps)",
+    "google_fonts_embed_url": "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap",
+    "scale": {
+      "h1_hero": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2_section": "text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight",
+      "h3_card": "text-lg sm:text-xl font-semibold",
+      "body_regular": "text-sm sm:text-base font-normal leading-relaxed text-zinc-300",
+      "small_label": "text-xs uppercase tracking-wider font-semibold text-zinc-400",
+      "price_highlight": "font-mono font-bold text-orange-400"
+    }
+  },
+  "colors": {
+    "mode": "dark",
+    "background_primary": "#0D0D0F",
+    "background_secondary": "#17171A",
+    "background_elevated": "#222226",
+    "card_background": "#1A1A1E",
+    "card_border": "rgba(255, 255, 255, 0.08)",
+    "text_primary": "#F4F4F6",
+    "text_secondary": "#A1A1AA",
+    "text_muted": "#71717A",
+    "accent_orange": "#FF5500",
+    "accent_orange_hover": "#FF6B1A",
+    "accent_orange_light": "rgba(255, 85, 0, 0.15)",
+    "accent_orange_glow": "rgba(255, 85, 0, 0.35)",
+    "status_pills": {
+      "new": {
+        "label": "Novo (New)",
+        "bg": "bg-amber-500/15 text-amber-400 border-amber-500/30",
+        "dot": "bg-amber-400 animate-pulse"
+      },
+      "accepted": {
+        "label": "Aceito (Accepted)",
+        "bg": "bg-blue-500/15 text-blue-400 border-blue-500/30",
+        "dot": "bg-blue-400"
+      },
+      "preparing": {
+        "label": "Em Preparo (In Preparation)",
+        "bg": "bg-purple-500/15 text-purple-400 border-purple-500/30",
+        "dot": "bg-purple-400 animate-spin"
+      },
+      "ready": {
+        "label": "Pronto (Ready)",
+        "bg": "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        "dot": "bg-emerald-400"
+      },
+      "out_for_delivery": {
+        "label": "Saiu p/ Entrega (Out for Delivery)",
+        "bg": "bg-orange-500/15 text-orange-400 border-orange-500/30",
+        "dot": "bg-orange-400 animate-bounce"
+      },
+      "delivered": {
+        "label": "Entregue (Delivered)",
+        "bg": "bg-zinc-800 text-zinc-300 border-zinc-700",
+        "dot": "bg-zinc-500"
+      },
+      "cancelled": {
+        "label": "Cancelado (Cancelled)",
+        "bg": "bg-rose-500/15 text-rose-400 border-rose-500/30",
+        "dot": "bg-rose-500"
+      }
+    }
+  },
+  "component_styles": {
+    "header_nav": "Glassmorphism with backdrop-blur-xl bg-[#0D0D0F]/85 border-b border-white/10 sticky top-0 z-40 px-4 py-3",
+    "hero_cover": "Relative h-44 sm:h-56 lg:h-64 rounded-b-2xl overflow-hidden bg-gradient-to-t from-[#0D0D0F] via-black/40 to-black/20",
+    "category_chip_active": "bg-[#FF5500] text-white font-semibold shadow-lg shadow-[#FF5500]/25 rounded-full px-4 py-2 text-sm whitespace-nowrap transition-all duration-200",
+    "category_chip_inactive": "bg-[#1A1A1E] text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5 rounded-full px-4 py-2 text-sm whitespace-nowrap transition-all duration-200",
+    "product_card": "group relative bg-[#1A1A1E] hover:bg-[#222226] border border-white/8 rounded-2xl overflow-hidden transition-all duration-300 hover:border-[#FF5500]/40 hover:shadow-xl hover:shadow-[#FF5500]/5 flex flex-col justify-between p-3 sm:p-4",
+    "floating_cart_bar": "fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40 bg-[#FF5500] hover:bg-[#FF6B1A] text-white rounded-2xl px-5 py-3.5 shadow-2xl shadow-[#FF5500]/40 flex items-center justify-between font-semibold cursor-pointer active:scale-98 transition-all duration-200",
+    "size_chip_active": "bg-[#FF5500]/20 border-2 border-[#FF5500] text-orange-400 font-bold rounded-xl px-4 py-3 text-center transition-all",
+    "size_chip_inactive": "bg-[#17171A] border border-white/10 text-zinc-300 rounded-xl px-4 py-3 text-center hover:border-zinc-700 transition-all",
+    "quantity_stepper": "flex items-center gap-3 bg-[#17171A] border border-white/10 rounded-xl p-1",
+    "admin_kpi_card": "bg-[#1A1A1E] border border-white/8 rounded-2xl p-5 hover:border-white/15 transition-all flex items-center justify-between"
+  },
+  "image_urls": {
+    "restaurant_cover": "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwzfHxjb2NrdGFpbCUyMGJhcnxlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+    "restaurant_logo": "https://images.unsplash.com/photo-1561758033-d89a9ad46330?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwyfHxidXJnZXIlMjBmcmllc3xlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+    "products": [
+      {
+        "id": "prod_1",
+        "name": "X-Tudo Tá Na Hora",
+        "category": "Hambúrgueres",
+        "url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxidXJnZXIlMjBmcmllc3xlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Double smash beef patty, crispy bacon, cheddar, lettuce, tomato, special lanchonete sauce on brioche."
+      },
+      {
+        "id": "prod_2",
+        "name": "Combo Burguer + Batata",
+        "category": "Combos",
+        "url": "https://images.unsplash.com/photo-1551782450-a2132b4ba21d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwzfHxidXJnZXIlMjBmcmllc3xlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Artisanal burger served with crunchy golden french fries basket."
+      },
+      {
+        "id": "prod_3",
+        "name": "Batata Suprema c/ Bacon",
+        "category": "Porções",
+        "url": "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxidXJnZXIlMjBmcmllc3xlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Generous rustic fries portion topped with melted cheese sauce and crispy bacon bits."
+      },
+      {
+        "id": "prod_4",
+        "name": "Chopp Gelado 500ml",
+        "category": "Bebidas",
+        "url": "https://images.unsplash.com/photo-1608270586620-248524c67de9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxiZWVyJTIwZ2xhc3N8ZW58MHx8fHwxNzg4NTc0NjMxfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Ultra cold draft beer served in an icy mug."
+      },
+      {
+        "id": "prod_5",
+        "name": "Pizza Pepperoni Especial",
+        "category": "Pizzas",
+        "url": "https://images.unsplash.com/photo-1593504049359-74330189a345?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwzfHxwaXp6YSUyMHNsaWNlfGVufDB8fHx8MTc4ODU3NDYzMXww&ixlib=rb-4.1.0&q=85",
+        "description": "Mozzarella, premium pepperoni slices, oregano and tomato sauce on crispy thin crust."
+      },
+      {
+        "id": "prod_6",
+        "name": "Drink Tropical Sunset",
+        "category": "Bebidas",
+        "url": "https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwxfHxjb2NrdGFpbCUyMGJhcnxlbnwwfHx8fDE3ODg1NzQ2MjR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Craft cocktail with citrus rum, fresh passionfruit, orange juice and mint."
+      }
+    ]
+  },
+  "micro_interactions": {
+    "add_to_cart_pulse": "Scale keyframes pop (1 -> 1.05 -> 1) with orange glow pulse ring",
+    "quantity_stepper_bounce": "Micro scale animation on button press (+ / -)",
+    "floating_bar_badge_count": "Framer motion scale bounce when item count increments",
+    "status_transition_kanban": "Smooth horizontal drag or instant status select with toast alert using Sonner"
+  },
+  "testing_attributes": {
+    "guideline": "All interactive elements (buttons, inputs, status badges, cart bar, modals, tabs) MUST include data-testid with kebab-case identifiers.",
+    "examples": [
+      "data-testid=\"restaurant-name-header\"",
+      "data-testid=\"category-chip-hamburgueres\"",
+      "data-testid=\"product-card-prod_1\"",
+      "data-testid=\"product-size-radio-g\"",
+      "data-testid=\"add-to-cart-button\"",
+      "data-testid=\"floating-cart-bar\"",
+      "data-testid=\"checkout-submit-button\"",
+      "data-testid=\"admin-order-status-select-1001\"",
+      "data-testid=\"admin-product-availability-toggle-prod_1\""
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Load Google Fonts 'Outfit' and 'Plus Jakarta Sans' in public/index.html or index.css.",
+    "First demo tenant default: 'Tá Na Hora — Bar e Lanchonete' (Itu-SP, Tue-Sat 11:00-14:30). Provide clear tenant switching or path-based public page '/pedidos-restaurant' or '/tana-hora'.",
+    "Implement the two primary views: (1) Public Storefront (Customer) and (2) Admin Panel (Lojista) + Super-Admin panel list of lojistas.",
+    "In Public Storefront, ensure the floating cart bar is bottom-anchored on mobile with total item count and price, clicking opens the cart modal/drawer.",
+    "In Admin Panel, implement full order status workflow (New -> Accepted -> In preparation -> Ready -> Out for delivery -> Delivered / Cancelled) with distinct status pill colors.",
+    "In Products CRUD, support name, description, photo selection/upload, category, size pricing (P/M/G with 'from R$XX' calculation), add-ons, and availability toggle.",
+    "Include store customization page for updating logo, cover, name, WhatsApp, address, opening hours, and primary color.",
+    "Use sonner for instant feedback on adding items to cart or updating order statuses.",
+    "All elements MUST have data-testid attributes for automated testing."
+  ]
+}

@@ -1,0 +1,45 @@
+# Pedidos.app — Cardápio Digital Multi-Lojista
+
+## Original problem
+Sistema de cardápio digital + pedidos online mobile-first para restaurantes/bares/lanchonetes, multi-lojista (cada lojista em /slug), com painel admin completo (produtos, categorias, adicionais, pedidos com fluxo de status), autenticação de lojista e armazenamento de imagens. Primeiro tenant demo: "Tá Na Hora — Bar e Lanchonete" (Itu-SP), 17 produtos de marmitas P/M/G.
+
+## Architecture
+- Backend: FastAPI + MongoDB (motor). JWT em cookie httpOnly + Bearer fallback. bcrypt. Object storage Emergent (integration proxy) para uploads.
+- Frontend: React 19 + React Router 7, TailwindCSS + shadcn/ui, Sonner. Fontes: Outfit + Plus Jakarta Sans + JetBrains Mono. Tema dark #0D0D0F com laranja #FF5500.
+- Multi-tenancy: cada `user` tem `lojista_id`; endpoints `/api/admin/*` filtram por esse id.
+
+## Personas
+- Cliente final (mobile): navega cardápio, adiciona ao carrinho, faz checkout com dados de entrega/pagamento.
+- Lojista (owner): loga no /admin, gerencia produtos/categorias/pedidos/configurações da própria loja.
+- Super-admin (futuro): visão de todos os lojistas.
+
+## Core requirements (delivered)
+- Storefront público em /{slug} com hero, chips de categoria, cards de produto, dialog detalhado (P/M/G + adicionais + observação + qty), floating cart bar e sheet de carrinho.
+- Checkout completo (delivery/retirada, pix/dinheiro/cartão, troco, endereço).
+- Sucesso do pedido com número sequencial (counters por lojista).
+- Painel admin: Dashboard (KPIs + últimos pedidos), Pedidos (filtro por status + avançar/cancelar), Produtos (CRUD + upload imagem + toggle), Categorias (CRUD com ícones + ordem + status), Configurações (logo/capa/nome/descrição/contatos/horário/taxa entrega).
+- Auth JWT + seed do owner (santaterezinhaferrovelho@gmail.com).
+- Object storage Emergent para logo/capa/fotos de produtos (upload via /api/admin/upload, download via /api/files/{path}).
+
+## What's been implemented (2026-02-XX)
+- server.py completo com auth, storage, tenants, categorias, produtos, pedidos, dashboard.
+- Frontend com todas as rotas públicas e admin, contexto de auth + carrinho, componentes shadcn.
+- Seed automático: lojista tanahora + owner + categoria Marmitas + 17 produtos placeholder editáveis (P=20, M=25, G=30) + 4 adicionais.
+- Testing agent: backend 100%, frontend ~90% (fluxos-core verificados).
+
+## Backlog (priorizado)
+### P1
+- Painel super-admin (listar todos os lojistas + criar/desativar).
+- Registro público de novos lojistas (auto-serviço).
+- Notificação sonora de pedido novo no admin.
+- Compartilhamento por QR Code do link /slug.
+
+### P2
+- Integração Pix (link/QR de pagamento).
+- Integração WhatsApp (envio automático de confirmação).
+- Cupons de desconto.
+- Taxa de entrega por bairro.
+- Impressão de comanda (janela dedicada).
+- Cadastro/histórico de clientes.
+- Relatórios avançados / produtos mais vendidos.
+- Domínio próprio por lojista.
