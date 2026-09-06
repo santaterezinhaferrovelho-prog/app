@@ -85,11 +85,17 @@ export default function OrderPrint() {
         <h2>CLIENTE</h2>
         <div>{order.customer_name}</div>
         <div className="muted">Tel: {order.customer_phone}</div>
+
         {order.order_type === "delivery" && (
-          <div className="muted">
-            {order.address}, {order.number}{order.complement ? ` - ${order.complement}` : ""}<br />
-            {order.neighborhood}
-          </div>
+          <>
+            <hr />
+            <h2>ENTREGA</h2>
+            <div style={{ fontWeight: 700 }}>
+              {order.address}{order.number ? `, ${order.number}` : ""}
+            </div>
+            {order.complement && <div>Compl.: {order.complement}</div>}
+            {order.neighborhood && <div>Bairro: {order.neighborhood}</div>}
+          </>
         )}
 
         <hr />
