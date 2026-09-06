@@ -6,6 +6,7 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import OrderSuccess from "@/pages/OrderSuccess";
 import Landing from "@/pages/Landing";
 import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminRegister from "@/pages/admin/AdminRegister";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import Dashboard from "@/pages/admin/Dashboard";
 import Orders from "@/pages/admin/Orders";
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
           <Route
             path="/admin/orders/:id/print"
             element={

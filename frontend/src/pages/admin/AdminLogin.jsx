@@ -50,6 +50,9 @@ export default function AdminLogin() {
           <button data-testid="admin-login-submit" disabled={loading} className="w-full bg-[#FF5500] hover:bg-[#FF6B1A] disabled:opacity-60 text-white font-semibold rounded-xl py-3 flex items-center justify-center gap-2 shadow-lg shadow-[#FF5500]/25">
             <LogIn className="h-4 w-4" /> {loading ? "Entrando…" : "Entrar"}
           </button>
+          <div className="text-center text-sm text-zinc-500 pt-1">
+            Ainda não tem conta? <Link to="/admin/register" data-testid="link-to-register" className="text-[#FF9A57] hover:underline">Cadastre seu restaurante</Link>
+          </div>
         </form>
       </div>
     </div>

@@ -109,6 +109,16 @@ class LoginBody(BaseModel):
     email: EmailStr
     password: str
 
+class RegisterBody(BaseModel):
+    business_name: str
+    slug: str
+    owner_email: EmailStr
+    owner_password: str
+    address: Optional[str] = ""
+    whatsapp: Optional[str] = ""
+    hours: Optional[str] = ""
+    description: Optional[str] = ""
+
 class LojistaSettings(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
@@ -214,6 +224,64 @@ class NewLojistaBody(BaseModel):
     address: Optional[str] = ""
     hours: Optional[str] = ""
     whatsapp: Optional[str] = ""
+
+import re
+SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+def _issue_token_cookie(user_doc: dict, response: Response) -> str:
+    token = create_access_token(user_doc["id"], user_doc["email"])
+    response.set_cookie("access_token", token, httponly=True, secure=True,
+                        samesite="none", max_age=43200, path="/")
+    return token
+
+@api.post("/auth/register")
+async def register(body: RegisterBody, response: Response):
+    slug = body.slug.strip().lower()
+    if len(slug) < 3 or len(slug) > 40 or not SLUG_RE.match(slug):
+        raise HTTPException(status_code=400, detail="Slug inválido (3-40 caracteres, use letras, números e hífens)")
+    if slug in {"admin", "api", "super", "public", "files"}:
+        raise HTTPException(status_code=400, detail="Este slug é reservado")
+    if len(body.owner_password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter ao menos 6 caracteres")
+    if await db.lojistas.find_one({"slug": slug}):
+        raise HTTPException(status_code=400, detail="Este endereço já está em uso, escolha outro")
+    email = body.owner_email.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado")
+
+    lojista_id = new_id()
+    lojista_doc = {
+        "id": lojista_id, "slug": slug, "name": body.business_name.strip(),
+        "description": body.description or "",
+        "logo_url": None, "cover_url": None,
+        "phone": "", "whatsapp": body.whatsapp or "", "instagram": "",
+        "address": body.address or "", "hours": body.hours or "",
+        "open_days": [], "open_start": "", "open_end": "",
+        "primary_color": "#FF5500", "delivery_fee": 0.0,
+        "active": True, "created_at": now_iso(),
+    }
+    await db.lojistas.insert_one(lojista_doc)
+
+    user_doc = {
+        "id": new_id(), "email": email,
+        "password_hash": hash_password(body.owner_password),
+        "name": body.business_name.strip(),
+        "role": "owner", "lojista_id": lojista_id,
+        "created_at": now_iso(),
+    }
+    await db.users.insert_one(user_doc)
+
+    token = _issue_token_cookie(user_doc, response)
+    user_doc.pop("_id", None); user_doc.pop("password_hash", None)
+    return {"user": user_doc, "token": token, "lojista": clean(lojista_doc)}
+
+@api.get("/auth/check-slug/{slug}")
+async def check_slug(slug: str):
+    slug = slug.strip().lower()
+    if len(slug) < 3 or len(slug) > 40 or not SLUG_RE.match(slug) or slug in {"admin", "api", "super", "public", "files"}:
+        return {"available": False, "reason": "invalid"}
+    exists = await db.lojistas.find_one({"slug": slug})
+    return {"available": not exists}
 
 @api.post("/auth/login")
 async def login(body: LoginBody, response: Response):

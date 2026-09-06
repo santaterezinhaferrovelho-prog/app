@@ -32,16 +32,19 @@ export default function Landing() {
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </Link>
           <Link
-            to="/admin/login"
-            data-testid="visit-admin-btn"
+            to="/admin/register"
+            data-testid="visit-register-btn"
             className="group flex items-center justify-between rounded-2xl bg-[#1A1A1E] hover:bg-[#222226] border border-white/10 px-5 py-4 font-semibold text-zinc-100 transition-all"
           >
             <span className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-[#FF5500]" />
-              Entrar como lojista
+              Cadastrar meu restaurante
             </span>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </Link>
+        </div>
+        <div className="mt-2 text-xs text-zinc-500">
+          Já tem conta? <Link to="/admin/login" data-testid="landing-login-link" className="text-[#FF9A57] hover:underline">Entrar como lojista</Link>
         </div>
 
         <div className="mt-14 grid gap-4 sm:grid-cols-3">
