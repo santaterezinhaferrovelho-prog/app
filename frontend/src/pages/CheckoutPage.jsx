@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { CartProvider, useCart } from "@/context/CartContext";
 import api, { formatBRL } from "@/lib/api";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { ChevronLeft } from "lucide-react";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 
 function CheckoutInner({ slug, lojista }) {
   const { items, subtotal, clear } = useCart();
@@ -20,12 +21,14 @@ function CheckoutInner({ slug, lojista }) {
     notes: "", change_for: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const submittedRef = useRef(false);
 
   const deliveryFee = orderType === "delivery" ? (lojista.delivery_fee || 0) : 0;
   const total = subtotal + deliveryFee;
 
   useEffect(() => {
-    if (items.length === 0) navigate(`/${slug}`, { replace: true });
+    // Only bounce back if the cart is empty AND we haven't just submitted
+    if (items.length === 0 && !submittedRef.current) navigate(`/${slug}`, { replace: true });
   }, [items, slug, navigate]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -65,10 +68,19 @@ function CheckoutInner({ slug, lojista }) {
         notes: form.notes,
       };
       const { data } = await api.post(`/public/lojistas/${slug}/orders`, body);
-      clear();
+      submittedRef.current = true;
+      // Open WhatsApp with pre-composed message if lojista has a number.
+      // window.open must run inside this click handler to avoid popup blocking.
+      const waLink = buildWhatsAppLink(data, lojista);
+      if (waLink) {
+        try { window.open(waLink, "_blank", "noopener,noreferrer"); } catch (_) { /* noop */ }
+      }
       navigate(`/${slug}/success/${data.id}`, { state: { order: data, lojista } });
+      // Clear AFTER navigate so the useEffect above doesn't fire and bounce back
+      setTimeout(() => clear(), 0);
     } catch (e) {
-      toast.error("Não foi possível enviar o pedido. Tente novamente.");
+      const detail = e.response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : "Não foi possível enviar o pedido. Tente novamente.");
     } finally {
       setSubmitting(false);
     }

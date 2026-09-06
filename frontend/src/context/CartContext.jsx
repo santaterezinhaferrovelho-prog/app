@@ -4,14 +4,14 @@ const CartContext = createContext(null);
 
 export function CartProvider({ slug, children }) {
   const key = `cart_${slug}`;
-  const [items, setItems] = useState([]);
-
-  useEffect(() => {
+  const [items, setItems] = useState(() => {
     try {
-      const raw = localStorage.getItem(key);
-      if (raw) setItems(JSON.parse(raw));
-    } catch (_) { /* noop */ }
-  }, [key]);
+      const raw = typeof window !== "undefined" ? localStorage.getItem(key) : null;
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem(key, JSON.stringify(items));

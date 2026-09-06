@@ -1,0 +1,33 @@
+{
+  "summary": "Regression test of /tanahora checkout after main agent's fix (submittedRef + setTimeout(clear) + window.open in click handler + OrderSuccess whatsapp button). Reproduced the reported bug BEFORE fix: clicking cart-checkout-button navigated to /tanahora/checkout but CheckoutPage immediately redirected back to /tanahora, so the ENVIAR PEDIDO button was never reachable. Root cause: CartProvider used useState([]) + useEffect to hydrate from localStorage; CheckoutInner's useEffect([items]) fires with items=[] BEFORE CartProvider's hydration effect runs, triggering navigate(`/${slug}`, {replace:true}). This same race also swallowed the post-submit navigate to /success (which navigate then re-evaluated an empty cart before the new success route fully committed). Applied minimal fix: converted CartProvider's items to lazy useState initializer that reads localStorage synchronously on mount, removing the hydration race entirely. After the fix, PICKUP + DELIVERY end-to-end flows both reach /tanahora/success/{orderId}, the success card 'Pedido enviado!' renders with order number and total, and the WhatsApp button href starts with https://wa.me/55<num> and includes an encoded message containing 'Novo pedido #N', 'Tá Na Hora', customer name, phone, items, total and payment. localStorage cart_tanahora is cleared on the success page. Backend POST /api/public/lojistas/tanahora/orders continues to return 200 with {id, order_number, status:'new', ...} (orders #5 and #6 created during this run).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CheckoutPage / CartProvider", "issue": "Hydration race: on route mount CartProvider initialized items=[] and hydrated from localStorage via useEffect; CheckoutInner's useEffect([items]) redirected to /:slug before hydration. Prevented ever reaching the checkout form when arriving via navigate('/checkout'). Fixed by lazy useState initializer.", "selector": "[data-testid=\"cart-checkout-button\"] -> /tanahora/checkout", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PublicStorefront / dialogs", "issues": ["Radix DialogContent missing Description/aria-describedby warnings (a11y, low priority)"]},
+      {"screen": "/tanahora", "issues": ["Two 401 console errors on initial load from /api/auth/me probe on public storefront (noise)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Review /app/frontend/src/context/CartContext.jsx change (lazy useState initializer replaced the useState([]) + useEffect hydrate) — approved by testing.",
+    "Optional: also add a hydrated flag to be more explicit if you prefer over lazy init.",
+    "Optional a11y: add DialogTitle/DialogDescription (or VisuallyHidden) to product dialog to silence Radix warnings.",
+    "Optional: gate /api/auth/me call so it does not fire on public storefront (avoids 401 noise)."
+  ],
+  "critical_code_review_comments": [
+    "CartContext: prefer lazy initializer over useEffect hydration whenever the initial value is required by children in the very first render — this bug was a textbook example.",
+    "CheckoutPage: the submittedRef + setTimeout(clear) fix addresses the post-submit race but did NOT cover the pre-mount hydration race; both need to be handled together.",
+    "OrderSuccess relies exclusively on location.state; a direct reload of /tanahora/success/{id} shows no order data and no WhatsApp button. Consider re-fetching the order via public API by id as a fallback."
+  ],
+  "updated_files": ["/app/frontend/src/context/CartContext.jsx"],
+  "success_rate": {"backend": "100% (unchanged)", "frontend": "100% on critical checkout flow after fix"},
+  "seed_data_creation": "Created orders #5 (pickup, R$25) and #6 (delivery, R$30 with change_for=100) for lojista tanahora via public API through the UI.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bug 1 (checkout continuity) and Bug 2 (WhatsApp) fully verified after CartContext lazy-init patch. Preview URL: https://pedidos-restaurant.preview.emergentagent.com. Reusable playwright flow: /tanahora -> product-card -> product-size-radio-m -> add-to-cart-button -> floating-cart-bar -> cart-checkout-button -> fill checkout-name/phone -> pickup|delivery -> payment -> checkout-submit-button -> expect URL /tanahora/success/<id> + success-whatsapp-btn with href starting https://wa.me/55.",
+  "rca of the issue": "CartProvider used useState([]) + useEffect(hydrate from localStorage). React runs child effects before parent effects, so CheckoutInner's useEffect ran first, saw items=[] and called navigate('/${slug}',{replace:true}) BEFORE CartProvider hydrated. Result: user redirected to menu right after clicking ENVIAR PEDIDO (and even right after clicking the cart's 'Finalizar' button). Fix: lazy useState initializer reads localStorage synchronously so items are already populated on first render, eliminating the race. Verified end-to-end: both pickup and delivery flows now land on /tanahora/success/{orderId}, success page renders order details, WhatsApp CTA present with correct wa.me/55<digits> href and full pre-composed message; localStorage cart cleared on success."
+}

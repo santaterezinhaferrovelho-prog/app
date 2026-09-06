@@ -29,6 +29,7 @@ Sistema de cardápio digital + pedidos online mobile-first para restaurantes/bar
 - Aviso sonoro + destaque de pedido novo (2026-02): utilitário Web Audio (`lib/sound.js`) toca chime a cada pedido detectado no polling de 10s; toggle ON/OFF persistido em localStorage; badge de "N novos" no título e ring laranja + animate-pulse + fita "NOVO PEDIDO" no card por 20s.
 - Impressão de comanda (2026-02): rota /admin/orders/:id/print com layout 80mm (Courier, dashes, carimbo OBRIGADO); auto-abre window.print() ao carregar; botão "Imprimir" em cada card e auto-abertura ao avançar para "Aceito"; seção **ENTREGA** com endereço em bold; endpoint GET /api/admin/orders/:id.
 - Cadastro público de lojista (2026-02): POST /api/auth/register cria lojista + owner + auto-login (cookie); GET /api/auth/check-slug/:s valida disponibilidade em tempo real; tela /admin/register com preview da URL pública, slug slugificado automaticamente do nome, e status live (available/taken/invalid); slugs reservados: admin/api/super/public/files.
+- Bug fix checkout + integração WhatsApp (2026-02): CartProvider agora usa lazy useState initializer (eliminando race entre hydrate do localStorage e useEffect do CheckoutInner que redirecionava); submittedRef + setTimeout(clear) na navegação para success; nova lib/whatsapp.js abre wa.me/55<num> com mensagem pré-composta do pedido; botão "Enviar pedido pelo WhatsApp" persistente na página de sucesso.
 - Testing agent: backend 100%, frontend ~90% (fluxos-core verificados).
 
 ## Backlog (priorizado)
