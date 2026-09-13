@@ -7,6 +7,7 @@ load_dotenv(ROOT_DIR / '.env')
 import os
 import uuid
 import logging
+import unicodedata
 import bcrypt
 import jwt
 import requests
@@ -29,6 +30,7 @@ JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 APP_NAME = os.environ.get('APP_NAME', 'tanahora')
+OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY", "").strip()
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -128,12 +130,16 @@ class LojistaSettings(BaseModel):
     whatsapp: Optional[str] = None
     instagram: Optional[str] = None
     address: Optional[str] = None
+    store_postal_code: Optional[str] = None
     hours: Optional[str] = None
     open_days: Optional[List[int]] = None  # 0=Sunday .. 6=Saturday
     open_start: Optional[str] = None  # "HH:MM"
     open_end: Optional[str] = None    # "HH:MM"
     primary_color: Optional[str] = None
     delivery_fee: Optional[float] = None
+    delivery_fee_per_km: Optional[float] = None
+    store_neighborhood: Optional[str] = None
+    delivery_fee_same_neighborhood: Optional[float] = None
     active: Optional[bool] = None
 
 class CategoryBody(BaseModel):
@@ -175,6 +181,7 @@ class OrderBody(BaseModel):
     order_type: str  # delivery | pickup
     address: Optional[str] = ""
     number: Optional[str] = ""
+    postal_code: Optional[str] = ""
     complement: Optional[str] = ""
     neighborhood: Optional[str] = ""
     payment_method: str  # pix | cash | card
@@ -182,6 +189,7 @@ class OrderBody(BaseModel):
     items: List[OrderItem]
     subtotal: float
     delivery_fee: float = 0
+    delivery_distance_km: Optional[float] = None
     total: float
     notes: Optional[str] = ""
 
@@ -209,6 +217,147 @@ def clean(doc):
     doc.pop("_id", None)
     return doc
 
+def delivery_rate(lojista: dict) -> float:
+    return max(0.0, float(lojista.get("delivery_fee_per_km", 0) or 0))
+
+def _normalize_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char)).lower()
+    normalized = normalized.replace("-", " ").replace(",", " ")
+    words = [word for word in normalized.split() if word not in {"jd", "jardim", "sp", "sao", "paulo"}]
+    return " ".join(words).strip()
+
+def _is_same_neighborhood(lojista: dict, customer_neighborhood: str) -> bool:
+    store_neighborhood = _normalize_text(lojista.get("store_neighborhood", ""))
+    customer_neighborhood = _normalize_text(customer_neighborhood)
+    if not store_neighborhood or not customer_neighborhood:
+        return False
+    store_words = set(store_neighborhood.split())
+    customer_words = set(customer_neighborhood.split())
+    return store_words == customer_words or store_words.issubset(customer_words) or customer_words.issubset(store_words)
+
+def _geocode_address(address: str, postal_code: str = "") -> tuple[float, float] | None:
+    if not address.strip():
+        return None
+    try:
+        query_parts = [address.strip(), postal_code.strip()]
+        postal_data = {}
+        postal_digits = re.sub(r"\D", "", postal_code)
+        if len(postal_digits) == 8:
+            postal_response = requests.get(f"https://viacep.com.br/ws/{postal_digits}/json/", timeout=8)
+            if postal_response.ok:
+                postal_data = postal_response.json()
+                if not postal_data.get("erro"):
+                    query_parts.extend(
+                        part for part in (
+                            postal_data.get("logradouro"),
+                            postal_data.get("bairro"),
+                            postal_data.get("localidade"),
+                            postal_data.get("uf"),
+                            "Brasil",
+                        ) if part
+                    )
+        query = ", ".join(part for part in query_parts if part)
+        if OPENROUTESERVICE_API_KEY:
+            response = requests.get(
+                "https://api.openrouteservice.org/geocode/search",
+                params={
+                    "api_key": OPENROUTESERVICE_API_KEY,
+                    "text": query,
+                    "size": 1,
+                    "boundary.country": "BR",
+                },
+                timeout=8,
+            )
+            if response.ok:
+                features = response.json().get("features", [])
+                if features:
+                    coordinates = features[0]["geometry"]["coordinates"]
+                    return float(coordinates[0]), float(coordinates[1])
+
+        geocoder_query = ", ".join(
+            part for part in (
+                postal_data.get("logradouro"),
+                postal_data.get("bairro"),
+                postal_data.get("localidade"),
+                postal_data.get("uf"),
+                "Brasil",
+            ) if part
+        ) or query
+        normalized_address = (
+            geocoder_query.replace("Rua:", "Rua ")
+            .replace("Jd ", "Jardim ")
+            .replace("jd ", "Jardim ")
+            .replace(" itu ", ", Itu, ")
+            .replace(" Itu ", ", Itu, ")
+            .replace(" são Paulo", ", São Paulo, Brasil")
+            .replace(" Sao Paulo", ", São Paulo, Brasil")
+        )
+        normalized_address = " ".join(normalized_address.split())
+        response = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": normalized_address, "format": "jsonv2", "limit": 1, "countrycodes": "br"},
+            headers={"User-Agent": "Pedidos.app delivery calculator"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        results = response.json()
+        if not results:
+            return None
+        return float(results[0]["lon"]), float(results[0]["lat"])
+    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError):
+        logger.warning("Could not geocode delivery address: %s", address)
+        return None
+
+def _distance_km(first: tuple[float, float], second: tuple[float, float]) -> Optional[float]:
+    try:
+        response = requests.post(
+            "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+            headers={
+                "Authorization": OPENROUTESERVICE_API_KEY,
+                "Content-Type": "application/json",
+            },
+            json={"coordinates": [list(first), list(second)]},
+            timeout=12,
+        )
+        response.raise_for_status()
+        distance_meters = response.json()["features"][0]["properties"]["summary"]["distance"]
+        return float(distance_meters) / 1000
+    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError):
+        logger.warning("Could not calculate driving route with OpenRouteService")
+        return None
+
+def _delivery_quote(lojista: dict, customer_address: str, customer_neighborhood: str = "", customer_postal_code: str = "") -> dict:
+    if _is_same_neighborhood(lojista, customer_neighborhood):
+        return {
+            "distance_km": 0,
+            "delivery_fee": round(max(0.0, float(lojista.get("delivery_fee_same_neighborhood", 0) or 0)), 2),
+            "rate_per_km": delivery_rate(lojista),
+            "same_neighborhood": True,
+        }
+    store_address = ", ".join(
+        part for part in (
+            lojista.get("address", ""),
+            lojista.get("store_neighborhood", ""),
+            lojista.get("store_postal_code", ""),
+        ) if part and part.strip()
+    )
+    store_location = _geocode_address(store_address, lojista.get("store_postal_code", ""))
+    customer_location = _geocode_address(customer_address, customer_postal_code)
+    if not store_location or not customer_location:
+        raise HTTPException(
+            status_code=400,
+            detail="Não foi possível localizar a loja ou o endereço de entrega. Confira os endereços.",
+        )
+    distance = _distance_km(store_location, customer_location)
+    if distance is None:
+        raise HTTPException(
+            status_code=502,
+            detail="O serviço de rotas está indisponível ou excedeu a cota da API. Tente novamente mais tarde.",
+        )
+    distance_km = round(distance, 2)
+    fee = round(distance_km * delivery_rate(lojista), 2)
+    return {"distance_km": distance_km, "delivery_fee": fee, "rate_per_km": delivery_rate(lojista), "same_neighborhood": False}
 # --------- Auth routes ---------
 async def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
     if not user.get("is_super_admin"):
@@ -257,7 +406,8 @@ async def register(body: RegisterBody, response: Response):
         "phone": "", "whatsapp": body.whatsapp or "", "instagram": "",
         "address": body.address or "", "hours": body.hours or "",
         "open_days": [], "open_start": "", "open_end": "",
-        "primary_color": "#FF5500", "delivery_fee": 0.0,
+        "primary_color": "#FF5500", "delivery_fee": 0.0, "delivery_fee_per_km": 0.0,
+        "store_neighborhood": "", "delivery_fee_same_neighborhood": 0.0,
         "active": True, "created_at": now_iso(),
     }
     await db.lojistas.insert_one(lojista_doc)
@@ -316,16 +466,60 @@ async def public_lojista(slug: str):
                                    {"_id": 0}).to_list(1000)
     return {"lojista": lojista, "categories": cats, "products": prods}
 
+@api.get("/public/address-by-postal-code/{postal_code}")
+async def public_address_by_postal_code(postal_code: str):
+    digits = re.sub(r"\D", "", postal_code)
+    if len(digits) != 8:
+        raise HTTPException(status_code=400, detail="CEP inválido")
+    try:
+        response = requests.get(f"https://viacep.com.br/ws/{digits}/json/", timeout=8)
+        response.raise_for_status()
+        result = response.json()
+    except (requests.RequestException, ValueError):
+        raise HTTPException(status_code=502, detail="Não foi possível consultar o CEP")
+    if result.get("erro"):
+        raise HTTPException(status_code=404, detail="CEP não encontrado")
+    return {
+        "postal_code": digits,
+        "address": result.get("logradouro", ""),
+        "neighborhood": result.get("bairro", ""),
+        "city": result.get("localidade", ""),
+        "state": result.get("uf", ""),
+    }
+
+@api.get("/public/lojistas/{slug}/delivery-quote")
+async def public_delivery_quote(slug: str, address: str, number: str = "", neighborhood: str = "", postal_code: str = ""):
+    lojista = await db.lojistas.find_one({"slug": slug, "active": True})
+    if not lojista:
+        raise HTTPException(status_code=404, detail="Loja não encontrada")
+    customer_address = ", ".join(part for part in (address, number, neighborhood) if part.strip())
+    return _delivery_quote(lojista, customer_address, neighborhood, postal_code)
+
 @api.post("/public/lojistas/{slug}/orders")
 async def create_public_order(slug: str, body: OrderBody):
     lojista = await db.lojistas.find_one({"slug": slug, "active": True})
     if not lojista:
         raise HTTPException(status_code=404, detail="Loja não encontrada")
+    delivery_fee = 0.0
+    delivery_distance_km = None
+    if body.order_type == "delivery":
+        quote = _delivery_quote(
+            lojista,
+            ", ".join(part for part in (body.address, body.number, body.neighborhood) if part.strip()),
+            body.neighborhood,
+            body.postal_code,
+        )
+        delivery_fee = quote["delivery_fee"]
+        delivery_distance_km = quote["distance_km"]
+
     order_number = await db.counters.find_one_and_update(
         {"_id": f"orders_{lojista['id']}"},
         {"$inc": {"seq": 1}}, upsert=True, return_document=True)
     seq = (order_number or {}).get("seq", 1)
     doc = body.model_dump()
+    doc["delivery_fee"] = delivery_fee
+    doc["delivery_distance_km"] = delivery_distance_km
+    doc["total"] = round(body.subtotal + delivery_fee, 2)
     doc.update({
         "id": new_id(),
         "lojista_id": lojista["id"],
@@ -551,7 +745,8 @@ async def super_create(body: NewLojistaBody, user: dict = Depends(require_super_
         "phone": "", "whatsapp": body.whatsapp or "", "instagram": "",
         "address": body.address or "", "hours": body.hours or "",
         "open_days": [], "open_start": "", "open_end": "",
-        "primary_color": "#FF5500", "delivery_fee": 0.0,
+        "primary_color": "#FF5500", "delivery_fee": 0.0, "delivery_fee_per_km": 0.0,
+        "store_neighborhood": "", "delivery_fee_same_neighborhood": 0.0,
         "active": True, "created_at": now_iso(),
     }
     await db.lojistas.insert_one(lojista_doc)
@@ -624,6 +819,9 @@ async def seed():
             "open_end": "14:30",
             "primary_color": "#FF5500",
             "delivery_fee": 5.0,
+            "delivery_fee_per_km": 5.0,
+            "store_neighborhood": "",
+            "delivery_fee_same_neighborhood": 0.0,
             "active": True,
             "created_at": now_iso(),
         }
@@ -705,3 +903,6 @@ async def on_startup():
 @app.on_event("shutdown")
 async def on_shutdown():
     client.close()
+(string) df.: eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBkNzM0OTM2MDFiMDRiNDhiOWI2OTVhODVlMjMzMWY0IiwiaCI6Im11cm11cjY0In0=
+eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBkNzM0OTM2MDFiMDRiNDhiOWI2OTVhODVlMjMzMWY0IiwiaCI6Im11cm11cjY0In0=
+ajuda

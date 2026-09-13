@@ -20,11 +20,15 @@ export default function Settings() {
       await api.put("/admin/lojista", {
         name: form.name, description: form.description, phone: form.phone,
         whatsapp: form.whatsapp, instagram: form.instagram, address: form.address,
+        store_postal_code: form.store_postal_code || "",
         hours: form.hours, primary_color: form.primary_color,
         open_days: form.open_days || [],
         open_start: form.open_start || "",
         open_end: form.open_end || "",
-        delivery_fee: parseFloat(form.delivery_fee || 0) || 0,
+        delivery_fee: parseFloat(form.delivery_fee_per_km ?? form.delivery_fee ?? 0) || 0,
+        delivery_fee_per_km: parseFloat(form.delivery_fee_per_km ?? form.delivery_fee ?? 0) || 0,
+        store_neighborhood: form.store_neighborhood || "",
+        delivery_fee_same_neighborhood: parseFloat(form.delivery_fee_same_neighborhood || 0) || 0,
         logo_url: form.logo_url, cover_url: form.cover_url,
       });
       toast.success("Configurações salvas");
@@ -119,7 +123,8 @@ export default function Settings() {
             <div><Label className="text-zinc-300">Telefone</Label><Input value={form.phone || ""} onChange={set("phone")} className="bg-[#0D0D0F] border-white/10 mt-1" /></div>
             <div><Label className="text-zinc-300">WhatsApp</Label><Input data-testid="settings-whatsapp" value={form.whatsapp || ""} onChange={set("whatsapp")} className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="(11) 90000-0000" /></div>
             <div><Label className="text-zinc-300">Instagram</Label><Input value={form.instagram || ""} onChange={set("instagram")} className="bg-[#0D0D0F] border-white/10 mt-1" /></div>
-            <div><Label className="text-zinc-300">Endereço (será usado no Google Maps)</Label><Input data-testid="settings-address" value={form.address || ""} onChange={set("address")} className="bg-[#0D0D0F] border-white/10 mt-1" /></div>
+            <div><Label className="text-zinc-300">Endereço (será usado no mapa)</Label><Input data-testid="settings-address" value={form.address || ""} onChange={set("address")} className="bg-[#0D0D0F] border-white/10 mt-1" /></div>
+            <div><Label className="text-zinc-300">CEP da loja</Label><Input data-testid="settings-store-postal-code" value={form.store_postal_code || ""} onChange={set("store_postal_code")} className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="00000-000" /></div>
           </div>
         </div>
 
@@ -157,7 +162,20 @@ export default function Settings() {
 
         <div className="rounded-2xl border border-white/8 bg-[#1A1A1E] p-5 space-y-4">
           <div className="text-xs uppercase tracking-widest text-[#FF5500] font-semibold">Pedidos</div>
-          <div><Label className="text-zinc-300">Taxa de entrega (R$)</Label><Input data-testid="settings-delivery-fee" type="number" step="0.01" value={form.delivery_fee || 0} onChange={set("delivery_fee")} className="bg-[#0D0D0F] border-white/10 mt-1" /></div>
+          <div>
+            <Label className="text-zinc-300">Valor da entrega por km (R$)</Label>
+            <Input data-testid="settings-delivery-fee" type="number" min="0" step="0.01" value={form.delivery_fee_per_km ?? form.delivery_fee ?? 0} onChange={set("delivery_fee_per_km")} className="bg-[#0D0D0F] border-white/10 mt-1" />
+            <div className="text-xs text-zinc-500 mt-1">A taxa será calculada multiplicando este valor pela distância entre a loja e o cliente.</div>
+          </div>
+          <div>
+            <Label className="text-zinc-300">Bairro da loja</Label>
+            <Input data-testid="settings-store-neighborhood" value={form.store_neighborhood || ""} onChange={set("store_neighborhood")} className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="Ex.: Centro" />
+          </div>
+          <div>
+            <Label className="text-zinc-300">Valor fixo para o mesmo bairro (R$)</Label>
+            <Input data-testid="settings-same-neighborhood-fee" type="number" min="0" step="0.01" value={form.delivery_fee_same_neighborhood || 0} onChange={set("delivery_fee_same_neighborhood")} className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="Ex.: 5.00" />
+            <div className="text-xs text-zinc-500 mt-1">Quando o cliente estiver no mesmo bairro, este valor será usado no lugar da rota por quilômetro.</div>
+          </div>
         </div>
 
         <button data-testid="settings-save" onClick={save} className="bg-[#FF5500] hover:bg-[#FF6B1A] text-white font-semibold rounded-xl py-3 shadow-lg shadow-[#FF5500]/25">Salvar alterações</button>

@@ -17,19 +17,73 @@ function CheckoutInner({ slug, lojista }) {
   const [payment, setPayment] = useState("pix");
   const [form, setForm] = useState({
     customer_name: "", customer_phone: "",
-    address: "", number: "", complement: "", neighborhood: "",
+    address: "", number: "", postal_code: "", complement: "", neighborhood: "",
     notes: "", change_for: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [deliveryQuote, setDeliveryQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoting, setQuoting] = useState(false);
+  const [lookingUpPostalCode, setLookingUpPostalCode] = useState(false);
   const submittedRef = useRef(false);
 
-  const deliveryFee = orderType === "delivery" ? (lojista.delivery_fee || 0) : 0;
+  const deliveryFee = orderType === "delivery" ? (deliveryQuote?.delivery_fee || 0) : 0;
   const total = subtotal + deliveryFee;
 
   useEffect(() => {
     // Only bounce back if the cart is empty AND we haven't just submitted
     if (items.length === 0 && !submittedRef.current) navigate(`/${slug}`, { replace: true });
   }, [items, slug, navigate]);
+
+  useEffect(() => {
+    if (orderType !== "delivery" || !form.address || !form.number || !form.neighborhood) {
+      setDeliveryQuote(null);
+      setQuoteError("");
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setQuoting(true);
+      setQuoteError("");
+      try {
+        const { data } = await api.get(`/public/lojistas/${slug}/delivery-quote`, {
+          params: { address: form.address, number: form.number, neighborhood: form.neighborhood, postal_code: form.postal_code },
+        });
+        if (!cancelled) setDeliveryQuote(data);
+      } catch (e) {
+        if (!cancelled) {
+          setDeliveryQuote(null);
+          setQuoteError(e.response?.data?.detail || "Não foi possível calcular a entrega.");
+        }
+      } finally {
+        if (!cancelled) setQuoting(false);
+      }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.address, form.number, form.neighborhood, form.postal_code, orderType, slug]);
+
+  useEffect(() => {
+    const digits = form.postal_code.replace(/\D/g, "");
+    if (orderType !== "delivery" || digits.length !== 8) return undefined;
+    let cancelled = false;
+    setLookingUpPostalCode(true);
+    api.get(`/public/address-by-postal-code/${digits}`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setForm((current) => ({
+          ...current,
+          address: data.address || current.address,
+          neighborhood: [data.neighborhood, data.city && `${data.city} - ${data.state}`].filter(Boolean).join(", "),
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) setQuoteError("CEP não encontrado. Confira o número informado.");
+      })
+      .finally(() => {
+        if (!cancelled) setLookingUpPostalCode(false);
+      });
+    return () => { cancelled = true; };
+  }, [form.postal_code, orderType]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -39,8 +93,12 @@ function CheckoutInner({ slug, lojista }) {
       toast.error("Preencha nome e telefone.");
       return;
     }
-    if (orderType === "delivery" && (!form.address || !form.number || !form.neighborhood)) {
-      toast.error("Preencha o endereço de entrega.");
+    if (orderType === "delivery" && (!form.address || !form.number || !form.neighborhood || !form.postal_code)) {
+      toast.error("Preencha endereço, número, bairro, cidade, estado e CEP.");
+      return;
+    }
+    if (orderType === "delivery" && (!deliveryQuote || quoting)) {
+      toast.error(quoting ? "Aguarde o cálculo da entrega." : quoteError || "Não foi possível calcular a entrega.");
       return;
     }
     setSubmitting(true);
@@ -51,6 +109,7 @@ function CheckoutInner({ slug, lojista }) {
         order_type: orderType,
         address: form.address,
         number: form.number,
+        postal_code: form.postal_code,
         complement: form.complement,
         neighborhood: form.neighborhood,
         payment_method: payment,
@@ -64,7 +123,7 @@ function CheckoutInner({ slug, lojista }) {
           addons: it.addons || [],
           observation: it.observation || "",
         })),
-        subtotal, delivery_fee: deliveryFee, total,
+        subtotal, delivery_fee: deliveryFee, delivery_distance_km: deliveryQuote?.distance_km || null, total,
         notes: form.notes,
       };
       const { data } = await api.post(`/public/lojistas/${slug}/orders`, body);
@@ -80,6 +139,7 @@ function CheckoutInner({ slug, lojista }) {
       setTimeout(() => clear(), 0);
     } catch (e) {
       const detail = e.response?.data?.detail;
+      console.error("checkout submit failed:", e);
       toast.error(typeof detail === "string" ? detail : "Não foi possível enviar o pedido. Tente novamente.");
     } finally {
       setSubmitting(false);
@@ -124,19 +184,34 @@ function CheckoutInner({ slug, lojista }) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Label className="text-zinc-300">Endereço</Label>
-                  <Input data-testid="checkout-address-input" value={form.address} onChange={set("address")} className="bg-[#0D0D0F] border-white/10 mt-1" />
+                  <Input data-testid="checkout-address-input" value={form.address} readOnly className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="Preenchido pelo CEP" />
                 </div>
                 <div>
                   <Label className="text-zinc-300">Número</Label>
                   <Input data-testid="checkout-number-input" value={form.number} onChange={set("number")} className="bg-[#0D0D0F] border-white/10 mt-1" />
                 </div>
                 <div>
+                  <Label className="text-zinc-300">CEP</Label>
+                  <Input data-testid="checkout-postal-code-input" value={form.postal_code} onChange={set("postal_code")} className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="00000-000" />
+                  {lookingUpPostalCode && <div className="text-xs text-zinc-500 mt-1">Localizando endereço pelo CEP…</div>}
+                </div>
+                <div>
                   <Label className="text-zinc-300">Complemento</Label>
                   <Input value={form.complement} onChange={set("complement")} className="bg-[#0D0D0F] border-white/10 mt-1" />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label className="text-zinc-300">Bairro</Label>
-                  <Input data-testid="checkout-neighborhood-input" value={form.neighborhood} onChange={set("neighborhood")} className="bg-[#0D0D0F] border-white/10 mt-1" />
+                  <Label className="text-zinc-300">Bairro, cidade e estado</Label>
+                  <Input data-testid="checkout-neighborhood-input" value={form.neighborhood} readOnly className="bg-[#0D0D0F] border-white/10 mt-1" placeholder="Preenchido pelo CEP" />
+                </div>
+                <div className="sm:col-span-2 text-sm">
+                  {quoting && <span className="text-zinc-400">Calculando distância e taxa de entrega…</span>}
+                  {!quoting && deliveryQuote?.same_neighborhood && (
+                    <span className="text-emerald-400">Mesmo bairro da loja: taxa fixa aplicada</span>
+                  )}
+                  {!quoting && deliveryQuote && !deliveryQuote.same_neighborhood && (
+                    <span className="text-emerald-400">Distância estimada: {deliveryQuote.distance_km.toFixed(2)} km</span>
+                  )}
+                  {!quoting && quoteError && <span className="text-rose-400">{quoteError}</span>}
                 </div>
               </div>
             )}
@@ -167,8 +242,8 @@ function CheckoutInner({ slug, lojista }) {
           <section className="rounded-2xl border border-white/10 bg-[#1A1A1E] p-5">
             <div className="text-xs uppercase tracking-widest text-[#FF5500] font-semibold mb-3">Resumo</div>
             <div className="space-y-1.5 text-sm">
-              {items.map((it, i) => (
-                <div key={i} className="flex items-center justify-between">
+              {items.map((it) => (
+                <div key={it.uid} className="flex items-center justify-between">
                   <span className="text-zinc-300">
                     {it.quantity}× {it.product_name}{it.size_name ? ` (${it.size_name})` : ""}
                   </span>
@@ -181,7 +256,11 @@ function CheckoutInner({ slug, lojista }) {
             <div className="mt-4 border-t border-white/10 pt-3 space-y-1.5 text-sm">
               <div className="flex items-center justify-between"><span className="text-zinc-400">Subtotal</span><span className="font-mono">{formatBRL(subtotal)}</span></div>
               {orderType === "delivery" && (
-                <div className="flex items-center justify-between"><span className="text-zinc-400">Taxa de entrega</span><span className="font-mono">{formatBRL(deliveryFee)}</span></div>
+                <>
+                  <div className="flex items-center justify-between"><span className="text-zinc-400">Taxa de entrega</span><span className="font-mono">{formatBRL(deliveryFee)}</span></div>
+                  {deliveryQuote?.same_neighborhood && <div className="flex items-center justify-between text-xs"><span className="text-zinc-500">Entrega</span><span className="font-mono text-zinc-400">Mesmo bairro</span></div>}
+                  {deliveryQuote && !deliveryQuote.same_neighborhood && <div className="flex items-center justify-between text-xs"><span className="text-zinc-500">Distância</span><span className="font-mono text-zinc-400">{deliveryQuote.distance_km.toFixed(2)} km</span></div>}
+                </>
               )}
               <div className="flex items-center justify-between text-lg font-bold pt-2">
                 <span>Total</span>
