@@ -903,6 +903,4 @@ async def on_startup():
 @app.on_event("shutdown")
 async def on_shutdown():
     client.close()
-(string) df.: eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBkNzM0OTM2MDFiMDRiNDhiOWI2OTVhODVlMjMzMWY0IiwiaCI6Im11cm11cjY0In0=
-eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBkNzM0OTM2MDFiMDRiNDhiOWI2OTVhODVlMjMzMWY0IiwiaCI6Im11cm11cjY0In0=
-ajuda
+(string) 
